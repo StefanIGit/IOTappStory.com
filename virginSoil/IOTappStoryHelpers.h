@@ -1,7 +1,75 @@
+/*
+ changed order decause of readFullConfiguration not declared error
+ 
+ */
+
 void initialize() {   // this function is called by IOTappstory() before return. Here, you put a safe startup configuration
 
 }
 
+void JSONerror(String err) {
+  DEBUG_PRINTLN(err);
+  DEBUG_PRINTLN("Restoring default values");
+  writeConfig();
+  LEDswitch(RedFastBlink);
+
+}
+
+void readFullConfiguration() {
+  readConfig();  // configuration in EEPROM
+  if (SPIFFS.begin()) {
+    File configFile = SPIFFS.open("/config.json", "r");
+    if (configFile) {
+      size_t size = configFile.size();
+      if (size <= 1024) {
+        // Allocate a buffer to store contents of the file.
+        std::unique_ptr<char[]> buf(new char[size]);
+
+        configFile.readBytes(buf.get(), size);
+        //   DEBUG_PRINTLN(buf.get());
+
+        StaticJsonBuffer<1024> jsonBuffer;
+        JsonObject& json = jsonBuffer.parseObject(buf.get());
+
+        if (json.success()) {
+          // Fetch values.
+          if (json.containsKey("magicBytes")) {
+
+            DEBUG_PRINTLN("SPIFFS Configuration found");
+            strcpy(config.magicBytes, json["magicBytes"]);
+            Serial.println("1");
+            strcpy(config.boardName, json["boardName"]);
+
+/*
+You have to decide if you want to update your constants with Wi-Fi Manager or from JSON. If you want to use WiFiManager, comment the next few lines 
+If you want to use WiFiManager to update, then comment the respective lines in readFullConfiguration()
+ */
+ /*
+            strcpy(config.IOTappStory1, json["IOTappStory1"]);
+            strcpy(config.IOTappStoryPHP1, json["IOTappStoryPHP1"]);
+            strcpy(config.IOTappStory2, json["IOTappStory2"]);
+            strcpy(config.IOTappStoryPHP2, json["IOTappStoryPHP2"]);
+            strcpy(config.automaticUpdate, json["automaticUpdate"]);
+*/
+            //additional fields
+
+
+            // Print values.
+            for (JsonObject::iterator it = json.begin(); it != json.end(); ++it)
+            {
+              DEBUG_PRINT(it->key);
+              DEBUG_PRINT(": ");
+              DEBUG_PRINTLN(it->value.asString());
+            }
+
+          } else  JSONerror("File Content wrong");
+        } else  JSONerror(" No JSON Format");
+      } else  JSONerror(" JSON File too long");
+    }  else JSONerror("File not found");
+  } else JSONerror("SPIFFS Configurarion NOT FOUND!!!!");
+
+  Serial.println("Exit config");
+}
 
 void configESP() {
   Serial.begin(115200);
@@ -124,69 +192,7 @@ you have to decide if you want to update your constants with Wi-Fi Manager or fr
 
 }
 
-void JSONerror(String err) {
-  DEBUG_PRINTLN(err);
-  DEBUG_PRINTLN("Restoring default values");
-  writeConfig();
-  LEDswitch(RedFastBlink);
 
-}
-
-void readFullConfiguration() {
-  readConfig();  // configuration in EEPROM
-  if (SPIFFS.begin()) {
-    File configFile = SPIFFS.open("/config.json", "r");
-    if (configFile) {
-      size_t size = configFile.size();
-      if (size <= 1024) {
-        // Allocate a buffer to store contents of the file.
-        std::unique_ptr<char[]> buf(new char[size]);
-
-        configFile.readBytes(buf.get(), size);
-        //   DEBUG_PRINTLN(buf.get());
-
-        StaticJsonBuffer<1024> jsonBuffer;
-        JsonObject& json = jsonBuffer.parseObject(buf.get());
-
-        if (json.success()) {
-          // Fetch values.
-          if (json.containsKey("magicBytes")) {
-
-            DEBUG_PRINTLN("SPIFFS Configuration found");
-            strcpy(config.magicBytes, json["magicBytes"]);
-            Serial.println("1");
-            strcpy(config.boardName, json["boardName"]);
-
-/*
-You have to decide if you want to update your constants with Wi-Fi Manager or from JSON. If you want to use WiFiManager, comment the next few lines 
-If you want to use WiFiManager to update, then comment the respective lines in readFullConfiguration()
- */
- 
-            strcpy(config.IOTappStory1, json["IOTappStory1"]);
-            strcpy(config.IOTappStoryPHP1, json["IOTappStoryPHP1"]);
-            strcpy(config.IOTappStory2, json["IOTappStory2"]);
-            strcpy(config.IOTappStoryPHP2, json["IOTappStoryPHP2"]);
-            strcpy(config.automaticUpdate, json["automaticUpdate"]);
-
-            //additional fields
-
-
-            // Print values.
-            for (JsonObject::iterator it = json.begin(); it != json.end(); ++it)
-            {
-              DEBUG_PRINT(it->key);
-              DEBUG_PRINT(": ");
-              DEBUG_PRINTLN(it->value.asString());
-            }
-
-          } else  JSONerror("File Content wrong");
-        } else  JSONerror(" No JSON Format");
-      } else  JSONerror(" JSON File too long");
-    }  else JSONerror("File not found");
-  } else JSONerror("SPIFFS Configurarion NOT FOUND!!!!");
-
-  Serial.println("Exit config");
-}
 
 
 

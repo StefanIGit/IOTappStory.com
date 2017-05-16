@@ -1,3 +1,4 @@
+
 /* This sketch connects to IOTAppStory and downloads the assigned firmware. The firmware assignment is done on the server, and is based on the MAC address of the board
 
     On the server, you need to upload the PHP script "iotappstory.php", and put your .bin files in the .\bin folder
@@ -28,22 +29,25 @@
 */
 
 #define SKETCH "IOTappStoryLoader "
-#define VERSION "V1.2"
+#define VERSION "V1.3"
 #define FIRMWARE SKETCH VERSION
 
-#define SERIALDEBUG       // Serial is used to present debugging messages 
+//#define SERIALDEBUG       // Serial is used to present debugging messages 
+//#define REMOTEDEBUGGING   // http://sockettest.sourceforge.net/ 
+
 
 #define LEDS_INVERSE   // LEDS on = GND
 
 // #include <credentials.h>
-#include <ESP8266WiFi.h>
+#include <ESP8266WiFi.h>            // add this to arduino perferages additional libraries http://arduino.esp8266.com/stable/package_esp8266com_index.json and install from Sketch Libs lib mgmt.. esp8266
 #include <ESP8266httpUpdate.h>
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
-#include <WiFiManager.h>        //https://github.com/kentaylor/WiFiManager
+#include "WiFiManagerMod.h"        // used the modded version from the repo " means look in same folder as sketch   https://github.com/kentaylor/WiFiManager
 #include <Ticker.h>
 #include <EEPROM.h>
 #include "FS.h"
+#include <ArduinoJson.h>  //install by Arduino library manager
 
 extern "C" {
 #include "user_interface.h" // this is for the RTC memory read/write functions
@@ -75,6 +79,15 @@ extern "C" {
 
 
 //--------- ENUMS AND STRUCTURES  -------------------
+/*
+ * This is the configuration shown in the WiFi Manager
+ * I know python so I use pythonish terms
+ * Here a dictionary data type / object / thingy is defined, it is a the "struct"ure
+ * and named strConfig 
+ * 
+ * Here you can add more item / variables for your sketch like the blinkLEDPin
+ */
+String automaticUpdate, blinkLEDPin; // You need to define the dict key type 
 
 typedef struct {
   char ssid[STRUCT_CHAR_ARRAY_SIZE];
@@ -85,9 +98,15 @@ typedef struct {
   char IOTappStory2[STRUCT_CHAR_ARRAY_SIZE];
   char IOTappStoryPHP2[STRUCT_CHAR_ARRAY_SIZE];
   // insert NEW CONSTANTS according boardname example HERE!
+  char automaticUpdate[STRUCT_CHAR_ARRAY_SIZE];
+  char blinkLEDPin[STRUCT_CHAR_ARRAY_SIZE];
+  // end
   char magicBytes[4];
 } strConfig;
 
+/*
+ * So lets create the config dict and fill with values, order see above.
+ */
 strConfig config = {
   "",
   "",
@@ -96,6 +115,8 @@ strConfig config = {
   "/ota/esp8266-v1.php",
   "iotappstory.com",
   "/ota/esp8266-v1.php",
+  "test",
+  "2",
   "CFG"  // Magic Bytes
 };
 
@@ -107,6 +128,20 @@ strConfig config = {
 
 //---------- FUNCTIONS ----------
 // to help the compiler, sometimes, functions have  to be declared here
+/* 
+ * This is caused by the order of functions in the code. 
+ * 
+ * e.g. this will give errors, so put void awesomefunc(){... or a dummy like void awesomefunc();
+ * before the (main)loop
+ * 
+ * void loop(){
+ *  awesomefunc();
+ * }
+ * 
+ * void awesomefunc(){
+ *   println("Hello World");
+ * }
+ */
 void initialize(void);
 void connectNetwork(void);
 void loopWiFiManager(void);
@@ -120,7 +155,9 @@ void eraseFlash(void);
 
 //-------------------------- SETUP -----------------------------------------
 void setup() {
+  #ifdef SERIALDEBUG
   Serial.begin(115200);
+  #endif
   for (int i = 0; i < 5; i++) DEBUG_PRINTLN("");
   DEBUG_PRINTLN("Start "FIRMWARE);
 
